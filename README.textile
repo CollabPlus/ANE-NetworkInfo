@@ -13,10 +13,10 @@ The bin folder contains the compiled extension and the default swc, which can be
 
 h3. Building
 
-Requirements - Adobe Air SDK 3.1 or later, XCode IDE, Android SDK 2.2 or later, Java SDK, Apache Ant
+Requirements - Adobe Air SDK 3.1 or later, XCode IDE, Java SDK, Apache Ant
 
->cd build
->ant all
+Mac_Terminal>cd build
+Mac_Terminal>ant all
 
 h2. License
 
