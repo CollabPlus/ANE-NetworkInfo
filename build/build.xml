@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="NetworkInfo - Air Native Extension Build Scripts " default="all">
+	
+	<property file="build.config"/>
+		
+	<target name="all" depends="ios,swc,default,package" description="Full build of extension"/>
+	
+	<target name="ios" description="Build iOS Library">
+		<mkdir dir="../temp/ios/build/"/>
+
+		<!-- build static lib for iOS Devices targeting archs armv7, arvm64 -->
+		<exec executable="xcodebuild" failonerror="true" dir="../${name}iOSLibrary">
+			<arg line='-project ${name}iOSLibrary.xcodeproj'/>
+			<arg line='-target ${name}iOSLibrary'/>
+			<arg line='-configuration Release'/>
+			<arg line='-sdk iphoneos' />
+
+			<arg line='SYMROOT=../temp/ios/build/'/>
+		</exec>
+	
+		<!-- build static lib for iOS simulator targeting archs i386, x86_64 -->
+		<exec executable="xcodebuild" failonerror="true" dir="../${name}iOSLibrary">
+			<arg line='-project ${name}iOSLibrary.xcodeproj'/>
+			<arg line='-target ${name}iOSLibrary'/>
+			<arg line='-configuration Release'/>
+			<arg line='-sdk iphonesimulator' />
+
+			<arg line='SYMROOT=../temp/ios/build/'/>
+		</exec>
+		
+		<!-- create a fat/universal binary that include both device and simulator archs (armv7 i386 x86_64 arm64 )
+			 from their corresponding lib -->
+		<exec executable="lipo" failonerror="true" dir="../temp/ios">
+			<arg line='-create -output lib${name}iOSLibrary.a'/> 
+			<arg line='build/Release-iphoneos/lib${name}iOSLibrary.a'/>
+			<arg line='build/Release-iphonesimulator/lib${name}iOSLibrary.a'/>
+		</exec>
+
+		<delete dir="../temp/ios/build/"/>
+	</target>
+		
+	<target name="swc" description="Build swc library">
+		<mkdir dir="../temp/swc/content/"/>
+		
+		<fileset dir="../${name}ActionScriptLibrary/src" casesensitive="yes" id="classfiles">
+			<include name="**/*.as"/>
+		</fileset>
+
+		<pathconvert property="classlist" refid="classfiles" pathsep=" " dirsep=".">
+			<regexpmapper from=".*src.(.*)\.as" to="\1"/>
+		</pathconvert>
+		
+		<exec executable="${sdk.home}/bin/compc" failonerror="true">
+			<arg line='-source-path ../${name}ActionScriptLibrary/src'/>
+			<arg line='-output ../temp/swc/${name}ActionScriptLibrary.swc'/>
+			<arg line='-swf-version=13'/>
+			<arg line='-external-library-path+="${sdk.home}/frameworks/libs/air/airglobal.swc"'/>
+			<arg line='-include-classes ${classlist}'/>
+		</exec>
+
+		<unzip src="../temp/swc/${name}ActionScriptLibrary.swc" dest="../temp/swc/content" overwrite="true"/>
+		<copy file="../temp/swc/content/library.swf" todir="../temp/ios" overwrite="true"/>
+		<delete dir="../temp/swc/content/"/>
+	</target>
+	
+	<target name="default" description="Build default swc library">
+		<mkdir dir="../temp/default/"/>
+		
+		<fileset dir="../${name}DefaultLibrary/src" casesensitive="yes" id="classfiles2">
+			<include name="**/*.as"/>
+		</fileset>
+
+		<pathconvert property="classlist2" refid="classfiles2" pathsep=" " dirsep=".">
+			<regexpmapper from=".*src.(.*)\.as" to="\1"/>
+		</pathconvert>
+		
+		<exec executable="${sdk.home}/bin/compc" failonerror="true">
+			<arg line='-source-path ../${name}DefaultLibrary/src'/>
+			<arg line='-output ../temp/default/${name}DefaultLibrary.swc'/>
+			<arg line='-swf-version=13'/>
+			<arg line='-external-library-path+="${sdk.home}/frameworks/libs/air/airglobal.swc"'/>
+			<arg line='-include-classes ${classlist2}'/>
+		</exec>
+
+		<unzip src="../temp/default/${name}DefaultLibrary.swc" dest="../temp/default/swc" overwrite="true"/>
+		<copy file="../temp/default/swc/library.swf" todir="../temp/default" overwrite="true"/>
+		<delete dir="../temp/default/swc"/>
+	</target>
+	
+	<target name="package" description="Create the extension package">
+		<exec executable="${sdk.home}/bin/adt" failonerror="true" dir="../temp">
+			<arg value="-package"/>
+			<arg value="-tsa"/>
+			<arg value="none"/>
+	
+			<arg value="-storetype"/>
+			<arg value="pkcs12"/>
+			<arg value="-keystore"/>
+			<arg value="${keystore.file}"/>
+			<arg value="-storepass"/>
+			<arg value="${keystore.password}"/>
+			<arg value="-target"/>
+			<arg value="ane"/>
+			<arg value="${name}.ane"/>
+			<arg value="../build/extension.xml"/>
+			<arg line="-swc swc/${name}ActionScriptLibrary.swc"/>
+			<arg line="-platform iPhone-ARM -platformoptions ../build/platform.xml -C ios/ ."/>
+			<arg line="-platform iPhone-x86 -platformoptions ../build/platform.xml -C ios/ ."/>
+			<arg line="-platform default -C default/ ."/>
+		</exec>
+		
+		<move file="../temp/${name}.ane" todir="../bin"/>
+		<move file="../temp/default/${name}DefaultLibrary.swc" todir="../bin"/>
+		<delete dir="../temp"/>
+	</target>
+</project>
